@@ -1,0 +1,128 @@
+cols = [('Total number of bouts >=10 secs', (0,0,1,1)),
+('Total number of bouts >=1 min',(0,0,1,1)),
+('Total number of bouts >=5 mins',(0,0,1,1)),
+('Total number of bouts >=10 mins',(0,0,1,1)),
+('Total number of bouts >=30 mins',(0,0,1,1)),
+('Total number of bouts >=60 mins',(0,0,1,1)),
+('Total number of bouts >=40 mg',(0,1,0,1)),
+('Total number of bouts >=100 mg',(0,1,0,1)),
+('Total number of bouts >=150 mg',(0,1,0,1)),
+('Total number of bouts >=200 mg',(0,1,0,1)),
+('Mean intensity of all bouts',(0,1,0,0)),
+('Median intensity of all bouts',(0,1,0,0)),
+('Mean intensity of all bouts>=1 min',(0,1,1,0)),
+('Mean intensity of all bouts>=5 mins',(0,1,1,0)),
+('Mean intensity of all bouts>=10 mins',(0,1,1,0)),
+('Mean intensity of all bouts>=30 mins',(0,1,1,0)),
+('Mean intensity of all bouts>=60 mins',(0,1,1,0)),
+('95th centile',(0,1,0,0)),
+('5th centile',(0,1,0,0)),
+('Mean duration',(0,0,1,0)),
+('Median duration',(0,0,1,0)),
+('Total duration',(0,0,1,0)),
+('Total duration>=1 min',(0,0,1,0)),
+('Total duration>=5 mins',(0,0,1,0)),
+('Total duration>=10 mins',(0,0,1,0)),
+('Total duration>=30 mins',(0,0,1,0)),
+('Total duration>=60 mins',(0,0,1,0)),
+('Total volume',(1,0,0,0)),
+('Total volume >=1 min',(1,0,1,0)),
+('Total volume >=5 mins',(1,0,1,0)),
+('Total volume >=10 mins',(1,0,1,0)),
+('Total volume >=30 mins',(1,0,1,0)),
+('Total volume >=60 mins',(1,0,1,0)),
+('Total volume>=40 mg',(1,1,0,0)),
+('Total volume>=100 mg',(1,1,0,0)),
+('Total volume>=150 mg',(1,1,0,0)),
+('Total volume>=200 mg',(1,1,0,0)),
+('Proportion of volume <60 secs',(1,0,1,0)),
+('Proportion of volume <1200 secs',(1,0,1,0)),
+('Proportion of volume <1800 secs',(1,0,1,0)),
+('Proportion of volume >=1800 secs',(1,0,1,0)),
+('Proportion of volume <80mg',(1,1,0,0)),
+('Proportion of volume <120mg',(1,1,0,0)),
+('Proportion of volume <140mg',(1,1,0,0)),
+('Proportion of volume >=140mg',(1,1,0,0)),
+('Vol',(0,0,0,0)),
+('Int',(0,0,0,0)),
+('Dur',(0,0,0,0)),
+('Freq',(0,0,0,0))]
+
+adj = np.zeros((49, 49))
+
+def percent_rule(arr, perc, step, to_min):
+	store = []
+	if to_min:
+		data_step = np.minimum(arr, step)
+	else:
+		data_step = arr
+	i=0
+	while i< arr.shape[0]:
+		if data_step[i] >= step:
+			start = i
+			i = i+1
+			while np.mean(data_step[start:i])>=(step*perc):
+				if (i+1)>=arr.shape[0]:
+					store.append((start,i))
+					return store
+				i = i + 1
+				
+			store.append((start,i-1))
+			
+		else:
+			i = i+1
+	return store
+
+def metrics_from_store(arr, store):
+	tot_steps = np.sum([np.sum(store[j[0]:(j[1])]) for j in arr])
+	tot_dur = np.sum([j[1]-j[0] for j in arr])
+	return tot_steps, tot_dur
+
+	
+	
+def metrics(arr):
+
+	thresh_80_23_min = percent_rule(arr, 0.8, 20, True)
+	thresh_80_3_min = percent_rule(arr, 0.8, 50, True)
+	
+	thresh_90_23_min = percent_rule(arr, 0.9, 20, True)
+	thresh_90_3_min = percent_rule(arr, 0.9, 50, True)
+	
+	thresh_100_23_min = percent_rule(arr, 1, 20, True)
+	thresh_100_3_min = percent_rule(arr, 1, 50, True)
+	
+	thresh_80_23_nomin = percent_rule(arr, 0.8, 20, False)
+	thresh_80_3_nomin = percent_rule(arr, 0.8, 50, False)
+	
+	thresh_90_23_nomin = percent_rule(arr, 0.9, 20, False)
+	thresh_90_3_nomin = percent_rule(arr, 0.9, 50, False)
+	
+	thresh_100_23_nomin = percent_rule(arr, 1, 20, False)
+	thresh_100_3_nomin = percent_rule(arr, 1, 50, False)
+	
+	row = [
+	metrics_from_store(thresh_80_23_min, arr),
+	metrics_from_store(thresh_80_3_min, arr),
+	
+	metrics_from_store(thresh_90_23_min, arr),
+	metrics_from_store(thresh_90_3_min, arr),
+	
+	metrics_from_store(thresh_100_23_min, arr),
+	metrics_from_store(thresh_100_3_min, arr),
+	
+	metrics_from_store(thresh_80_23_nomin, arr),
+	metrics_from_store(thresh_80_3_nomin, arr),
+	
+	metrics_from_store(thresh_90_23_nomin, arr),
+	metrics_from_store(thresh_90_3_nomin, arr),
+	
+	metrics_from_store(thresh_100_23_nomin, arr),
+	metrics_from_store(thresh_100_3_nomin, arr)]
+	
+	
+	return np.array(row).flatten()
+	
+	
+	
+	
+	

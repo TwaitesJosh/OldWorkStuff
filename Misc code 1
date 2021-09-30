@@ -1,0 +1,690 @@
+import math
+from collections import Counter
+from pyentrp import entropy as ent
+
+def IN_entropy(s):
+    p, lns = Counter(s), float(len(s))
+    return -sum( count/lns * math.log(count/lns, 2) for count in p.values())
+
+def compress(uncompressed):
+	# Build the dictionary.
+	dict_size = 256
+	dictionary = {chr(i): i for i in range(dict_size)}
+
+	w = ""
+	result = []
+	for c in uncompressed:
+		wc = w + c
+		if wc in dictionary:
+			w = wc
+		else:
+			result.append(dictionary[w])
+			# Add wc to the dictionary.
+			dictionary[wc] = dict_size
+			dict_size += 1
+			w = c
+
+	# Output the code for w.
+	if w:
+		result.append(dictionary[w])
+	return result
+
+sample_en = ent.sample_entropy(ts, 3, 1)[2]
+string_labs = ''.join(np.char.mod('%d', ts))
+information_en = IN_entropy(string_labs)
+p = compress(string_labs)
+LZC = np.unique(p).shape[0] /(ts.shape[0]/math.log(ts.shape[0], np.unique(ts).shape[0]))
+
+
+def get_sec(time_str):
+    """Get Seconds from time."""
+    h, m, s = time_str.split(':')
+    return int(h) * 3600 + int(m) * 60 + int(s)
+
+
+def rle(bits):
+    # make sure all runs of ones are well-bounded
+    bounded = np.hstack(([0], bits, [0]))
+    # get 1 at run starts and -1 at run ends
+    difs = np.diff(bounded)
+    run_starts, = np.where(difs > 0)
+    run_ends, = np.where(difs < 0)
+    return np.array(list(zip(run_starts, run_ends)))
+
+
+def sampen2(L, m, r):
+
+	N = L.shape[0]
+
+	# Split time series and save all templates of length m
+	xmi = np.array([L[i : i + m] for i in range(N - m)])
+	xmj = np.array([L[i : i + m] for i in range(N - m + 1)])
+	
+	# Find the unique subsequences and their counts
+	uni_xmi, uni_xmi_counts = np.unique(xmi, axis=0, return_counts = True)
+	uni_xmj, uni_xmj_counts = np.unique(xmj, axis=0, return_counts = True)
+	B = np.sum(np.array([np.sum((np.abs(unii - uni_xmi).max(axis=1) <= r)*uni_xmj_counts)-1 for unii in uni_xmi])*uni_xmi_counts)
+	
+	m +=1
+	xm = np.array([L[i: i + m] for i in range(N - m + 1)])
+	
+	uni_xm, uni_xm_counts= np.unique(xm, axis=0, return_counts = True)
+	A = np.sum(np.array([np.sum((np.abs(unii - uni_xm).max(axis=1) <= r)*uni_xm_counts)-1 for unii in uni_xm])*uni_xm_counts)
+	
+	return -np.log(A / B)
+	
+	
+def bar_coder_active(int_thresh1, int_thresh2,int_thresh3,  dur_thresh1, dur_thresh2, dur_thresh3, dur_thresh4, row):
+	int_value = row[2]
+	dur_value = row[1]-row[0]
+	# Int 1
+	if int_value<=int_thresh1 and dur_value<=dur_thresh1:
+		return 3
+	if int_value<=int_thresh1 and dur_value<=dur_thresh2:
+		return 4
+	if int_value<=int_thresh1 and dur_value<=dur_thresh3:
+		return 5
+	if int_value<=int_thresh1 and dur_value<=dur_thresh4:
+		return 6
+	if int_value<=int_thresh1 and dur_value>dur_thresh4:
+		return 7
+	
+	# Int 2
+	if int_value<=int_thresh2 and dur_value<=dur_thresh1:
+		return 8
+	if int_value<=int_thresh2 and dur_value<=dur_thresh2:
+		return 9
+	if int_value<=int_thresh2 and dur_value<=dur_thresh3:
+		return 10
+	if int_value<=int_thresh2 and dur_value<=dur_thresh4:
+		return 11
+	if int_value<=int_thresh2 and dur_value>dur_thresh4:
+		return 12
+	
+	# Int 3
+	if int_value<=int_thresh3 and dur_value<=dur_thresh1:
+		return 13
+	if int_value<=int_thresh3 and dur_value<=dur_thresh2:
+		return 14
+	if int_value<=int_thresh3 and dur_value<=dur_thresh3:
+		return 15
+	if int_value<=int_thresh3 and dur_value<=dur_thresh4:
+		return 16
+	if int_value<=int_thresh3 and dur_value>dur_thresh4:
+		return 17
+	
+	# Int 4
+	if int_value>int_thresh3 and dur_value<=dur_thresh1:
+		return 18
+	if int_value>int_thresh3 and dur_value<=dur_thresh2:
+		return 19
+	if int_value>int_thresh3 and dur_value<=dur_thresh3:
+		return 20
+	if int_value>int_thresh3 and dur_value<=dur_thresh4:
+		return 21
+	if int_value>int_thresh3 and dur_value>dur_thresh4:
+		return 22
+
+def bar_coder_inactive(row):
+	dur_value = row[1]-row[0]
+	if dur_value<30:
+		return 2
+	if dur_value<=60:
+		return 1
+	else:
+		return 0
+
+	
+scores = np.zeros((713, 5), dtype = np.object)
+Codes = np.zeros((713, 7*86400))
+
+### Processed RData to barcode
+for index, id in enumerate(np.unique(tab['id'])):
+
+	t1 = tab[tab['id'] ==id]
+	t2 = t1[t1['Duration']!=0]
+	Start = np.array([get_sec(x.split(' ' )[1]) + (y-1)*86400 for x, y in zip(t2['Time'].values, t2['dayofwear'].values)])
+
+	End = Start + np.array([x for x in t2['Duration'].values])
+	Int = np.array([x/y for x,y in zip(t2['Volume'].values, t2['Duration'].values)])
+	
+	
+	zeros = np.zeros(7*86400)
+	for i,j in zip(Start, End):
+		zeros[i:j]=1
+		
+	Act = np.hstack((Start[:, None],End[:, None], Int[:, None]))
+	InAct = rle((zeros+1)%2)
+	
+	InAct_Labs = np.apply_along_axis(bar_coder_inactive, 1, InAct)
+	Act_Labs = np.apply_along_axis(lambda x :bar_coder_active(int_thresh1=0.08, int_thresh2=0.120, int_thresh3=0.140, dur_thresh1=60, dur_thresh2=180,
+	dur_thresh3 = 1200, dur_thresh4 = 1800, row = x), 1, Act)
+	
+	BarCode = np.zeros(7*86400)
+	
+	for i,j,k in np.hstack((InAct, InAct_Labs[:, None])):
+		BarCode[i:j]=k
+		
+	for i,j,k in np.array(np.hstack((Act[:, :2], Act_Labs[:, None])), dtype= np.int):
+		if j-i >=10800:
+			BarCode[i:(i+10800)]=k
+			print((i, j, k))
+		else:
+			BarCode[i:j]=k
+	
+	time_index = np.arange(BarCode.shape[0])%86400
+	to_keep = np.logical_and(time_index <=79200, time_index>=21600)
+		
+	string_labs = ''.join(np.char.mod('%d', BarCode[to_keep]))
+	information_en = IN_entropy(string_labs)
+
+	p = compress(string_labs)
+	LZC = np.unique(p).shape[0] /( BarCode[to_keep].shape[0]/math.log( BarCode[to_keep].shape[0], np.unique(BarCode[to_keep]).shape[0]))
+	sample_en = sampen2(BarCode[to_keep], 3, 1)
+	
+	active_perc = np.mean(BarCode[to_keep]>2)*100
+	
+	print(index)
+	scores[index] = np.array([id, information_en, LZC, sample_en, active_perc])
+	#Codes[index] = BarCode
+
+	
+	
+from sklearn.preprocessing import MinMaxScaler
+
+n = MinMaxScaler()
+
+float_scores = np.array(scores[:, 1:5], dtype = np.float)
+norm_scores = n.fit_transform(float_scores[:,:3])
+
+CC = np.sum(norm_scores, 1)
+CDC = CC*float_scores[:, 3]
+total = np.hstack((scores[:, 0][:, None], norm_scores, float_scores[:, 3][:, None], CC[:, None], CDC[:, None]))
+
+data_Tab = pd.DataFrame(total, columns = ['id', 'Information entropy', 'LZC', 'Sample Entropy', 'Percent Active', 'CC', 'CDC'])
+
+
+import numpy as np
+
+#R is factor os std
+def sampen(L, m, r):
+    N = len(L)
+    B = 0.0
+    A = 0.0
+
+    # Split time series and save all templates of length m
+    xmi = np.array([L[i : i + m] for i in range(N - m)])
+    xmj = np.array([L[i : i + m] for i in range(N - m + 1)])
+
+    # Save all matches minus the self-match, compute B
+    B = np.sum([np.sum(np.abs(xmii - xmj).max(axis=1) <= r) - 1 for xmii in xmi])
+
+    # Similar for computing A
+    m += 1
+    xm = np.array([L[i : i + m] for i in range(N - m + 1)])
+
+    A = np.sum([np.sum(np.abs(xmi - xm).max(axis=1) <= r) - 1 for xmi in xm])
+
+    # Return SampEn
+    return -np.log(A / B)
+	
+def sampen2(L, m, r):
+
+	N = L.shape[0]
+
+	# Split time series and save all templates of length m
+	xmi = np.array([L[i : i + m] for i in range(N - m)])
+	xmj = np.array([L[i : i + m] for i in range(N - m + 1)])
+	
+	# Find the unique subsequences and their counts
+	uni_xmi, uni_xmi_counts = np.unique(xmi, axis=0, return_counts = True)
+	uni_xmj, uni_xmj_counts = np.unique(xmj, axis=0, return_counts = True)
+	B = np.sum(np.array([np.sum((np.abs(unii - uni_xmi).max(axis=1) <= r)*uni_xmj_counts)-1 for unii in uni_xmi])*uni_xmi_counts)
+	
+	m +=1
+	xm = np.array([L[i: i + m] for i in range(N - m + 1)])
+	
+	uni_xm, uni_xm_counts= np.unique(xm, axis=0, return_counts = True)
+	A = np.sum(np.array([np.sum((np.abs(unii - uni_xm).max(axis=1) <= r)*uni_xm_counts)-1 for unii in uni_xm])*uni_xm_counts)
+	
+	return -np.log(A / B)
+	
+def quantiles():
+	all_counts = np.zeros((713, 8640))
+	for id_i, id in enumerate(np.unique(tab.ID_number)):
+		new_tab = tab[tab.ID_number==id]
+		
+		duration_counts = np.zeros(8640)
+		for dur_i, dur in enumerate(np.arange(0, 86400, 10)):
+			o = np.unique(new_tab[new_tab.Duration>dur].dayofwear).shape[0]
+			duration_counts[dur_i] = o
+			if o==0:
+				break	
+		print(id_i)
+		all_counts[id_i] = duration_counts
+	return(all_counts)
+		
+	
+def quantiles_int():
+	all_counts = np.zeros((713, 8640))
+	for id_i, id in enumerate(np.unique(tab.ID_number)):
+		new_tab = tab[tab.ID_number==id]
+		
+		duration_counts = np.zeros(8640)
+		for dur_i, dur in enumerate(np.arange(0.03, 1.5, 0.0002)):
+			o = np.unique(new_tab[new_tab.Volume/new_tab.Duration>dur].dayofwear).shape[0]
+			duration_counts[dur_i] = o
+			if o==0:
+				break	
+		print(id_i)
+		all_counts[id_i] = duration_counts
+	return(all_counts)
+	
+def plottage():	
+	fig, ax = plt.subplots()
+
+	colours = [('r', 0.3), ('g', 0.3), ('b', 0.3), ('c', 0.3),('m', 1),('y', 0.3),('k', 0.3)]
+	data_loc = np.arange(0, 86400, 10)
+	for i, (c, a) in enumerate(colours):
+		data = np.mean(p>i, 0)[:800]
+		ax.plot(data, color = c, alpha = a, label = str((i+1))+' Days')
+		top_int_idx = np.where(data<2/3)[0][0]
+		top_int = (top_int_idx, data[top_int_idx])
+
+		top_upwards_line = [(top_int[0], top_int[0]), (0, top_int[1])]
+		top_right_line = [(0, top_int[0]), (2/3, 2/3)]
+		#ax.plot(top_right_line[0],top_right_line[1],alpha = a, color = c)
+		#ax.plot(top_upwards_line[0],top_upwards_line[1],alpha = a, color = c)
+	
+		bottom_int_idx = np.where(data<1/3)[0][0]
+		bottom_int = (bottom_int_idx, data[bottom_int_idx])
+
+		bottom_upwards_line = [(bottom_int[0], bottom_int[0]), (0, bottom_int[1])]
+		bottom_right_line = [(0, bottom_int[0]), (1/3, 1/3)]
+		#ax.plot(bottom_right_line[0],bottom_right_line[1],alpha = a, color = c)
+		#ax.plot(bottom_upwards_line[0],bottom_upwards_line[1],alpha = a, color = c)
+		
+		
+		top_int_minute = "{:02d}".format(data_loc[top_int[0]]//60)+':' + "{:02d}".format(data_loc[top_int[0]]%60)
+		bottom_int_minute = "{:02d}".format(data_loc[bottom_int[0]]//60)+':' + "{:02d}".format(data_loc[bottom_int[0]]%60)
+		
+		#ax.annotate(s = top_int_minute+', '+bottom_int_minute, xy =(500, 1-(i/12)), color = c)
+		
+	y_ticklabels = [(0.0, 0), (0.2, 142), (0.4, 284), (0.6, 427), (0.8, 570), (1.0, 712)]
+	y_ticks = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+
+	x_ticks = [0.,100.,200.,300.,400.,500.,600.,700.,800.]
+	x_ticklabels = ['00:00', '16:40', '33:20', '50:00', '66:40', '83:20', '100:00', '116:40', '133:20']
+
+	ax.set_xticks(x_ticks)
+	ax.set_xticklabels(x_ticklabels)
+	ax.set_yticks(y_ticks)
+	ax.set_yticklabels(y_ticklabels)
+	ax.set_ylim((0,1.05))
+	plt.xlabel('Duration (MM:SS)')
+	plt.ylabel('Proportion/People')
+
+	plt.title('Cumulative Plot Duration')
+	plt.legend()
+	plt.show()
+
+def plottage_q():	
+	fig, ax = plt.subplots()
+
+	colours = [('r', 0.3), ('g', 0.3), ('b', 0.3), ('c', 0.3),('m', 1),('y', 0.3),('k', 0.3)]
+	data_loc = np.arange(0.03, 1.5, 0.0002)
+	for i, (c, a) in enumerate(colours):
+		data = np.mean(q>i, 0)[:1600]
+		
+		
+		top_int_idx = np.where(data<2/3)[0][0]
+		top_int = (top_int_idx, data[top_int_idx])
+
+		top_upwards_line = [(top_int[0], top_int[0]), (0, top_int[1])]
+		top_right_line = [(0, top_int[0]), (2/3, 2/3)]
+		#ax.plot(top_right_line[0],top_right_line[1],alpha = a, color = c)
+		#ax.plot(top_upwards_line[0],top_upwards_line[1],alpha = a, color = c)
+	
+		bottom_int_idx = np.where(data<1/3)[0][0]
+		bottom_int = (bottom_int_idx, data[bottom_int_idx])
+
+		bottom_upwards_line = [(bottom_int[0], bottom_int[0]), (0, bottom_int[1])]
+		bottom_right_line = [(0, bottom_int[0]), (1/3, 1/3)]
+		#ax.plot(bottom_right_line[0],bottom_right_line[1],alpha = a, color = c)
+		#ax.plot(bottom_upwards_line[0],bottom_upwards_line[1],alpha = a, color = c)
+		
+		
+		top_int_minute = str(np.round(data_loc[top_int[0]], 3))
+		bottom_int_minute =str(np.round(data_loc[bottom_int[0]], 3))
+		Lab = str(i+1)
+		#Lab = str((i+1))+' Days: ' + top_int_minute+', '+bottom_int_minute
+		ax.plot(data, color = c, alpha = a, label = Lab)
+		
+		
+	y_ticklabels = [(0.0, 0), (0.2, 142), (0.4, 284), (0.6, 427), (0.8, 570), (1.0, 712)]
+	y_ticks = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+
+	x_ticks = [200.,400.,600.,800.,1000.,1200.,1400.]
+	x_ticklabels = np.round(data_loc[[200, 400, 600, 800, 1000, 1200, 1400]],3)
+
+	ax.set_xticks(x_ticks)
+	ax.set_xticklabels(x_ticklabels)
+	ax.set_yticks(y_ticks)
+	ax.set_yticklabels(y_ticklabels)
+	ax.set_ylim((0,1.05))
+	ax.set_xlim((195, 1405))
+	plt.xlabel('Int (g)')
+	plt.ylabel('Proportion/People')
+
+	plt.title('Cumulative Plot Intensity')
+	plt.legend()
+	plt.show()
+	
+	
+def check_dur(dur):
+	count = 0
+	for id_i, id in enumerate(np.unique(tab.ID_number)):
+		new_tab = tab[tab.ID_number==id]
+	
+		o = np.unique(new_tab[new_tab.Duration>dur].dayofwear).shape[0]
+		if o>4:
+			count = count+1	
+	return count/712
+	
+def check_int(dur):
+	count = 0
+	for id_i, id in enumerate(np.unique(tab.ID_number)):
+		new_tab = tab[tab.ID_number==id]
+	
+		o = np.unique(new_tab[new_tab.Volume/new_tab.Duration>dur].dayofwear).shape[0]
+		if o>4:
+			count = count+1	
+	return count/712
+	
+def hist(dur):
+	count = []
+	for id_i, id in enumerate(np.unique(tab.ID_number)):
+		new_tab = tab[tab.ID_number==id]
+		count.append(np.max(new_tab.Duration))
+	return count
+	
+	
+steps = []
+
+for i in pals:
+	t = pd.read_csv(i)
+	step = t[t['ActivityCode (0=sedentary, 1= standing, 2=stepping)']==2]['Interval (s)'].values
+	steps = np.concatenate((steps, step))
+
+	
+fig, ax = plt.subplots()
+plt.hist(steps, bins = 53, rwidth = 0.9)
+plt.xlabel('Step interval (s)')
+plt.ylabel('Counts')
+
+plt.title('Freq plot of step intervals')
+plt.show()
+
+fig, ax = plt.subplots()
+plt.hist(steps[steps<2], bins = 13, rwidth = 0.9)
+plt.xlabel('Step interval (s)')
+plt.ylabel('Counts')
+
+plt.title('Freq plot of step intervals<2s')
+plt.show()
+
+
+
+
+# All data plots
+a, b = np.unique(t, return_counts = True)
+
+fig, ax = plt.subplots()
+
+ax.bar(a, 100*b/np.sum(b))
+plt.xlabel('Categories')
+plt.ylabel('% monitoring time')
+plt.title('% of total monitoring breakdown')
+plt.show()
+
+fig, ax = plt.subplots()
+
+ax.bar(a[3:], 100*b[3:]/np.sum(b))
+plt.xlabel('Categories')
+plt.ylabel('% monitoring time (Labels>2)')
+plt.title('% of total monitoring breakdown, (Labels>2)')
+ax.set_xticks(np.arange(3, 23, 3))
+plt.show()
+
+
+
+a, b = np.unique(t_keep, return_counts = True)
+
+# Only include to_keep, 6:00-22:00
+fig, ax = plt.subplots()
+
+ax.bar(a, 100*b/np.sum(b))
+plt.xlabel('Categories')
+plt.ylabel('% monitoring time')
+plt.title('% monitoring breakdown, 6:00-22:00')
+plt.show()
+print(np.round(100*b[3:]/np.sum(b), 2))
+
+fig, ax = plt.subplots()
+
+ax.bar(a[3:], 100*b[3:]/np.sum(b))
+plt.xlabel('Categories')
+plt.ylabel('% monitoring time (Labels>2)')
+plt.title('% monitoring breakdown, 6:00-22:00, (Labels>2)')
+ax.set_xticks(np.arange(3, 23, 3))
+plt.show()
+
+
+fig, ax = plt.subplots()
+
+ax.bar(a[3:], 100*b[3:]/np.sum(b[3:]))
+plt.xlabel('Categories')
+plt.ylabel('% monitoring time (Labels>2)')
+plt.title('% active monitoring breakdown, 6:00-22:00, (Labels>2)')
+ax.set_xticks(np.arange(3, 23, 3))
+plt.show()
+
+print(np.round(100*b[3:]/np.sum(b[3:]), 2))
+
+
+flat_t = t_keep.flatten()
+flat_t = flat_t[flat_t>2]
+
+# Proportions considering intensutues
+a, b = np.unique(np.array((flat_t-3)//5, dtype = np.int), return_counts = True)
+fig, ax = plt.subplots()
+
+ax.bar(a, 100*b/np.sum(b))
+plt.xlabel('Intensities')
+plt.ylabel('% monitoring time, (Labels>2)')
+plt.title('% of active intensities, 6:00-22:00, (Labels>2)')
+ax.set_xticks(np.arange(4))
+ax.set_xticklabels(['00-80', '80-120', '120-140', '140+'])
+plt.show()
+print(np.round(100*b/np.sum(b), 2))
+
+
+# Proportions of active eahviours, by duration
+a, b = np.unique(np.array((flat_t-3)%5, dtype = np.int), return_counts = True)
+fig, ax = plt.subplots()
+
+ax.bar(a, 100*b/np.sum(b))
+plt.xlabel('Durations')
+plt.ylabel('% monitoring time, (Labels>2)')
+plt.title('% of active durations, 6:00-22:00, (Labels>2)')
+ax.set_xticks(np.arange(5))
+ax.set_xticklabels(['10-60', '60-180', '180-1200', '1200-1800', '1800+'])
+plt.show()
+print(np.round(100*b/np.sum(b), 2))
+
+
+[5.47778835 3.91480589 7.46728393 1.63741133 4.18296588 0.38652585 0.36870694 1.20785216 0.37607145 1.39670166 0.03060908 0.0196844 0.06251213 0.01859322 0.06162305 0.03336677 0.01566751 0.04363264  0.01565151 0.06158409]
+
+[20.45550847 14.61891915 27.88481039  6.11452635 15.62029936  1.44338962 1.37684908  4.51043898  1.40435013  5.2156529   0.11430239  0.07350673 0.23343681  0.06943198  0.23011674  0.12460035  0.05850663  0.16293582  0.05844688  0.22997126]
+[84.69406371 13.95068071  0.72079465  0.63446093]
+[22.13780082 16.12778159 32.79162199  7.64675534 21.29604025]
+
+
+metrics = np.zeros((713, 29))
+### Processed RData to barcode
+for index, id in enumerate(np.unique(tab['id'])):
+
+	t1 = tab[tab['id'] ==id]
+	t2 = t1[t1['Duration']!=0]
+	Start = np.array([get_sec(x.split(' ' )[1]) + (y-1)*86400 for x, y in zip(t2['Time'].values, t2['dayofwear'].values)])
+
+	End = Start + np.array([x for x in t2['Duration'].values])
+	Int = np.array([x/y for x,y in zip(t2['Volume'].values, t2['Duration'].values)])
+	
+	
+	zeros = np.zeros(7*86400)
+	for i,j in zip(Start, End):
+		zeros[i:j]=1
+		
+	Act = np.hstack((Start[:, None],End[:, None], Int[:, None]))
+	InAct = rle((zeros+1)%2)
+	
+	InAct_Labs = np.apply_along_axis(bar_coder_inactive, 1, InAct)
+	Act_Labs = np.apply_along_axis(lambda x :bar_coder_active(int_thresh1=0.08, int_thresh2=0.120, int_thresh3=0.140, dur_thresh1=60, dur_thresh2=180,
+	dur_thresh3 = 1200, dur_thresh4 = 1800, row = x), 1, Act)
+	
+	
+	Dur = End[:, None] - Start[:, None]
+	Vol = t2['Volume'].values
+	Dur_group = np.array((Act_Labs-3)%5, dtype = np.int)
+	Int_group = np.array((Act_Labs-3)//5, dtype = np.int)
+	final = np.hstack((Dur, Vol[:, None], Int[:, None], Act_Labs[:, None], Dur_group[:, None], Int_group[:, None]))
+	
+	u1 = metrics_class(final)
+	u2 = metrics_dur(final)
+	u3 = metrics_int(final)
+	
+	metrics[index] = np.concatenate((u1, u2, u3))
+	print(index)
+	
+def metrics_class(data):
+	m = []
+	total_vol = np.sum(data[:, 1])
+	for i in np.arange(3, 23):
+		prop = np.sum(data[data[:, 3]==i][:, 1])/total_vol
+		m.append(prop)
+	return m
+	
+def metrics_dur(data):
+	m = []
+	total_vol = np.sum(data[:, 1])
+	for i in np.arange(5):
+		prop = np.sum(data[data[:, 4]==i][:, 1])/total_vol
+		m.append(prop)
+	return m
+	
+def metrics_int(data):
+	m = []
+	total_vol = np.sum(data[:, 1])
+	for i in np.arange(4):
+		prop = np.sum(data[data[:, 5]==i][:, 1])/total_vol
+		m.append(prop)
+	return m
+	
+	
+cd E:\Baseline data\RData files
+
+tab = pd.read_csv('Baseline_data.csv')	
+
+tab_values = tab.values	
+idx = tab_values[:, 7]
+scores = np.zeros((758, 9), dtype = np.object)
+
+for index, id in enumerate(np.unique(idx)):
+
+	t1 = tab_values[tab_values[:, 7] ==id]
+	t2 = t1[t1[:, 2]!=0]
+	
+	
+	Time = t2[:, 6]
+	new_time = [x[:-1] for x in Time]
+	
+	Day_of_wear = t2[:, 5]
+	
+	Start = np.array([get_sec(x) + (y-1)*86400 for x, y in zip(new_time, Day_of_wear)])
+
+	End = Start + np.array([x for x in t2[:, 2]])
+	Int = np.array([x/y for x,y in zip(t2[:, 3], t2[:, 2])])
+	
+	
+	zeros = np.zeros(7*86400)
+	for i,j in zip(Start, End):
+		zeros[i:j]=1
+		
+	Act = np.hstack((Start[:, None],End[:, None], Int[:, None]))
+	InAct = rle((zeros+1)%2)
+	
+	InAct_Labs = np.apply_along_axis(bar_coder_inactive, 1, InAct)
+	Act_Labs = np.apply_along_axis(lambda x :bar_coder_active(int_thresh1=0.08, int_thresh2=0.120, int_thresh3=0.140, dur_thresh1=60, dur_thresh2=180,
+	dur_thresh3 = 1200, dur_thresh4 = 1800, row = x), 1, Act)
+	
+	BarCode = np.zeros(7*86400)
+
+
+	
+	for i,j,k in np.hstack((InAct, InAct_Labs[:, None])):
+		BarCode[i:j]=k
+		
+	for i,j,k in np.array(np.hstack((Act[:, :2], Act_Labs[:, None])), dtype= np.int):
+		BarCode[i:j]=k
+	
+	# Remove hours from InAct, Act and BarCode, Dur-Later, Vol-later, Int
+	# MAke sure this matches up with u8,u9...keep np.sum(t2[:, 2] to compare with old values
+	
+	time_index = np.arange(86400*7)%86400
+	to_keep = np.logical_and(time_index <=79200, time_index>=21600)
+	
+	BarCode = BarCode[to_keep]
+	active_perc = np.mean(BarCode>2)*100
+	
+	
+	string_labs = ''.join(np.char.mod('%d', BarCode))
+	information_en = IN_entropy(string_labs)
+	
+	if np.unique(BarCode).shape[0]>1:
+		p = compress(string_labs)
+		LZC = np.unique(p).shape[0] /( BarCode.shape[0]/math.log(BarCode.shape[0], np.unique(BarCode).shape[0]))
+	
+	else:
+		LZC = 0
+	
+	sample_en = sampen2(BarCode, 3, 1)
+	# Add proportions in each class
+	
+#	Dur = End[:, None] - Start[:, None]
+	Vol = t2[:, 3]
+#	Dur_group = np.array((Act_Labs-3)%5, dtype = np.int)
+#	Int_group = np.array((Act_Labs-3)//5, dtype = np.int)
+#	final = np.hstack((Dur, Vol[:, None], Int[:, None], Act_Labs[:, None], Dur_group[:, None], Int_group[:, None]))
+	
+#	u1 = metrics_class(final)
+#	u2 = metrics_dur(final)
+#	u3 = metrics_int(final)
+#	Vol = np.sum(t1[:, 3])
+	u8 = np.array([id, id[5:11], active_perc, Vol, np.mean(Act[:, 2]), np.sum(t2[:, 2])])
+	u9 = np.array([information_en, sample_en, LZC])
+	
+	u4 = np.concatenate((u8, u9))	
+	
+	print(index)
+	
+	scores[index] = u4
+
+	
+
+	
+	# Add Entropyies, + average + average * percent acitive
+	
+
+	
+	# Check agaisnt thing you emailed before to check that they are the same ans that allignmeent mathches
